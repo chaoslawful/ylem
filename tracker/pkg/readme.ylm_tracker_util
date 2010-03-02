@@ -1,0 +1,24 @@
+YLEM - Yahoo! Lightweighted filE systeM
+* Description
+This package contains several useful tools for YLEM system.
+
+* Changelog
+Version 1.05
+	- increase admin backend timeout from 3s to 60s.
+
+Version 1.04
+	- disabled fsck jobs, because that's not suitable for write-intensive situation.
+
+Version 1.03
+	- changed mogadm to prevent too long waiting time.
+
+Version 1.02
+	- run fsck jobs at 00:00~05:00 everyday
+
+Version 1.01
+	- replace perl-DBD-mysql41 dependency with perl-DBI to be compatible
+	with MySQL 5.x
+
+Version 1.0
+	- initial version
+

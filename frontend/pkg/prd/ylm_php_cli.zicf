@@ -1,0 +1,26 @@
+PRODUCT_NAME=ylm_php_cli
+VERSION=`grep 'Version' ../readme.ylm_php_cli|head -1|awk '{print $2}'`
+CUSTODIAN=xiaozhe.wang@alibaba-inc.com http://twiki.corp.cnb.yahoo.com:9999/twiki/bin/view/PlatForm/Ylem
+SHORT_DESC=`head -1 ../readme.ylm_php_cli`
+LONG_DESC=`cat ../readme.ylm_php_cli`
+
+OWNER=root
+GROUP=wheel
+PERM=0644
+
+PACKAGE_OS_SPECIFIC = no
+
+ZINST requires pkg ylm_frontend_keydb * *
+
+d 0755 - - share/pear/ylem
+d 0755 - - share/htdocs/ylem
+
+f - - - share/pear/ylemcli/ylem.inc ../../src/ylem/ylemcli/ylem.inc
+f - - - share/pear/ylemcli/function.inc ../../src/ylem/ylemcli/function.inc
+f - - - share/pear/ylemcli/config.inc ../../src/ylem/ylemcli/prd/config.inc
+f - - - share/pear/ylemcli/XXTEA.php ../../src/ylem/inc/XXTEA.php
+f - - - share/pear/ylemcli/common.inc ../../src/ylem/inc/common.inc
+f - - - share/htdocs/ylemcli/test_putfile.php ../../src/ylem/ylemcli/test_putfile.php
+f - - - share/htdocs/ylemcli/test_getfile.php ../../src/ylem/ylemcli/test_getfile.php
+f - - - share/htdocs/ylemcli/test_removefile.php ../../src/ylem/ylemcli/test_removefile.php
+

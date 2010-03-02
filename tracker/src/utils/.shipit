@@ -1,0 +1,7 @@
+# auto-generated shipit config file.
+steps = FindVersion, ChangeVersion, CheckChangeLog, DistTest, Commit, Tag, MakeDist, UploadCPAN, AddToSVNDir
+
+svn.tagpattern = MogileFS-Utils-%v
+AddToSVNDir.dir = /home/lj/cvs/web-danga/dist/MogileFS
+
+

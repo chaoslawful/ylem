@@ -1,0 +1,27 @@
+PRODUCT_NAME=ylm_frontend
+VERSION=`grep 'Version' ../readme.ylm_frontend|head -1|awk '{print $2}'`
+CUSTODIAN=xiaozhe.wang@alibaba-inc.com http://twiki.corp.cnb.yahoo.com:9999/twiki/bin/view/PlatForm/Ylem
+SHORT_DESC=`head -1 ../readme.ylm_frontend`
+LONG_DESC=`cat ../readme.ylm_frontend`
+
+OWNER=root
+GROUP=wheel
+PERM=0644
+
+ZINST requires pkg ylm_frontend_keydb * *
+
+d 0755 - - share/pear/ylem
+d 0755 - - share/pear/ylem/internal
+d 0755 - - share/pear/ylem/external
+
+c - - - conf/yapache/include/ylm_frontend.conf ../../conf/prd/ylm_frontend.conf overwrite expand
+
+# PHP implementation for YLEM frontend
+f - - - share/pear/ylem/external/get.php ../../src/ylem/get.php
+f - - - share/pear/ylem/internal/nonauth_get.php ../../src/ylem/nonauth_get.php
+f - - - share/pear/ylem/internal/rm.php ../../src/ylem/rm.php
+f - - - share/pear/ylem/internal/ul.php ../../src/ylem/ul.php
+g - - - share/pear/ylem/ ../../src/ylem/inc/*.inc
+f - - - share/pear/ylem/config.inc ../../src/ylem/inc/prd/config.inc
+f - - - share/pear/ylem/XXTEA.php ../../src/ylem/inc/XXTEA.php
+

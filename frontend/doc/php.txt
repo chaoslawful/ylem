@@ -1,0 +1,16 @@
+* 为了使文件上传、下载操作正常进行，需要修改系统php.ini中的一些参数如下：
+	include_path=/home/y/share/pear:<...> 	; 将安装后的前端PHP文件目录加入系统PHP包含路径
+	open_basedir=/home/y/share/htdocs:/home/y/share/pear:/tmp:<...> 	; 将前端PHP文件目录及上传临时文件目录加入允许访问列表
+	post_max_size=20M 	; 设定最大POST请求体大小为20MB，以满足单次最大上传数据长度要求(可能为多个文件之和)
+	file_uploads=on 	; 允许文件上传操作
+	upload_max_filesize=10M 	; 设定上传单个文件最大长度为10MB
+	upload_tmp_dir=/tmp 	; 设定上传临时文件目录
+	max_input_time=300 	; 放宽数据输入最长时间到5分钟，以应对较大文件上传
+	max_execution_time=360 	; 放宽脚本执行最长时间到6分钟，以应对较大文件上传
+	memory_limit=128M 	; 更改每次请求PHP脚本允许使用的最大内存容量
+* YLEM前端需要如下PHP扩展，需要在系统PHP中配置安装：
+	filter
+	json
+	curl
+	memcache
+

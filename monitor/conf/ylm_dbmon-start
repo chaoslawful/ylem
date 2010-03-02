@@ -1,0 +1,13 @@
+#!/bin/sh
+ROOT=/usr
+# Database storage directory used for metadb free space monitoring
+YLM_DBMON_ROOT=/var/lib/mysql/
+# Database host for health monitoring
+YLM_DBMON_DBHOST=localhost
+# Database user for health monitoring (must have no password!)
+YLM_DBMON_DBUSER=root
+# Database health check interval (Unit: s)
+YLM_DBMON_INTERVAL=5
+
+exec $ROOT/bin/ylm_dbmon --daemonize --root $YLM_DBMON_ROOT --host $YLM_DBMON_DBHOST --user $YLM_DBMON_DBUSER --interval $YLM_DBMON_INTERVAL
+

@@ -1,0 +1,33 @@
+PRODUCT_NAME=ylm_tracker
+CUSTODIAN=xiaozhe.wang@alibaba-inc.com http://twiki.corp.cnb.yahoo.com:9999/twiki/bin/view/PlatForm/Ylem
+SHORT_DESC=YLEM Tracker Server
+LONG_DESC=`cat ../readme.ylm_tracker`
+VERSION=`grep Version ../readme.ylm_tracker|head -1|awk '{print $2}'`
+
+OWNER=root
+GROUP=wheel
+PERM=0644
+
+ZINST requires pkg ylm_tracker_conf * *
+
+ZINST set config $(ROOT)/conf/ylm_tracker/tracker.conf
+ZINST set volume 0
+
+d 0755 - - conf/ylm_tracker
+d 0755 - - lib/perl5
+d 0755 - - lib/perl5/site_perl
+d 0755 - - lib/perl5/site_perl/5.8
+d 0755 - - lib/perl5/site_perl/5.8/MogileFS
+
+c 0755 - - bin/ylm_tracker ../../src/server/ylm_tracker overwrite expand
+c 0755 - - bin/ylm_tracker-start ../../conf/prd/ylm_tracker-start overwrite expand
+c 0755 - - bin/ylm_tracker-stop ../../conf/prd/ylm_tracker-stop overwrite expand
+find $(PERM:stat) - - lib/perl5/site_perl/5.8/MogileFS/ ../../src/server/lib/MogileFS/ -name *.pm
+c - - - lib/perl5/site_perl/5.8/MogileFS/Config.pm ../../src/server/lib/MogileFS/Config.pm overwrite expand
+
+ZINST set autostart on
+ZINST pre-deactivate sudo -u nobody $(ROOT)/bin/ylm_tracker-stop
+
+ZINST start 30 sudo -u nobody $(ROOT)/bin/ylm_tracker-start
+ZINST stop 30 sudo -u nobody $(ROOT)/bin/ylm_tracker-stop
+

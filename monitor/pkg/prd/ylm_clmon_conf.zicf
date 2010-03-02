@@ -1,0 +1,14 @@
+PRODUCT_NAME=ylm_clmon_conf
+CUSTODIAN=xiaozhe.wang@alibaba-inc.com http://twiki.corp.cnb.yahoo.com:9999/twiki/bin/view/PlatForm/Ylem
+SHORT_DESC=Volume list for cluster monitoring
+LONG_DESC=`cat ../readme.ylm_clmon_conf`
+VERSION=`grep Version ../readme.ylm_clmon_conf|head -1|awk '{print $2}'`
+
+OWNER=root
+GROUP=wheel
+PERM=0644
+
+d 0755 - - conf/ylm_clmon
+
+c - - - conf/ylm_clmon/dbmon_boxes ../../conf/prd/dbmon_boxes overwrite
+

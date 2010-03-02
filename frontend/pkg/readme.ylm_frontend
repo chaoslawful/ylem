@@ -1,0 +1,40 @@
+ylem - Yahoo! Lightweight filE systeM
+
+
+* Changelog:
+Version 1.0.10
+	- forward Last-Modified and ETag headers from storage nodes
+	to support CDN caching strategy.
+
+Version 1.0.9
+	- added exception in HTTP_REFERER check for SNS related photo
+
+Version 1.0.8
+	- del yahoo! env
+	- add expires
+
+Version 1.0.7
+	- added tracker connection timeout definition
+
+Version 1.0.6
+	- added image/jpg as alias for image/jpeg
+
+Version 1.0.5
+	- added several params in php.ini to improve uploading performance
+
+Version 1.0.4
+	- added non-authorized get interface for internal usage
+
+Version 1.0.3
+	- changed acl from YahooConnection to yapache access control
+
+Version 1.0.2
+	- added UACS debug logging
+
+Version 1.0.1
+	- changed to yapache+yphp instead of lighttpd+php to save development
+	time.
+
+Version 1.0
+	- initial version
+

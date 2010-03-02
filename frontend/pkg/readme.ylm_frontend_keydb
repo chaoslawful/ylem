@@ -1,0 +1,10 @@
+ylem - Yahoo! Lightweight filE systeM
+This package contains the key used to authenticate get request.
+
+* Changelog:
+Version 1.0.1
+	- make the package platform independent
+
+Version 1.0
+	- initial version
+

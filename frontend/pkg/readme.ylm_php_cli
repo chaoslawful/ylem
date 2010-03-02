@@ -1,0 +1,30 @@
+ylem - Yahoo! Lightweight filE systeM
+
+YLEM PHP client.
+
+* Changelog:
+Version 1.0.7
+	- del yahoo! env
+	- add expires
+
+Version 1.0.6
+	- added method to access internal get interface
+
+Version 1.0.5
+	- modified test hosts to prd hosts
+
+Version 1.0.4
+	- make the package platform independent
+
+Version 1.0.3
+	- added dependency for yphp_curl, added some examples.
+
+Version 1.0.2
+	- added dependency for yphp and yphp_ysecure
+
+Version 1.0.1
+	- modified package name typo
+
+Version 1.0
+	- initial version
+

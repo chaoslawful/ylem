@@ -1,0 +1,7 @@
+#!/bin/sh
+ROOT=/usr
+# Storage mount point directory for health monitoring
+YLM_STMON_ROOT=/var/lib/ylem
+
+exec $ROOT/bin/ylm_stmon --daemonize --docroot=$YLM_STMON_ROOT
+

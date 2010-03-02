@@ -1,0 +1,28 @@
+PRODUCT_NAME=ylm_stmon
+CUSTODIAN=xiaozhe.wang@alibaba-inc.com http://twiki.corp.cnb.yahoo.com:9999/twiki/bin/view/PlatForm/Ylem
+SHORT_DESC=YLEM Monitor for Storage Nodes
+LONG_DESC=`cat ../readme.ylm_stmon`
+VERSION=`grep Version ../readme.ylm_stmon|head -1|awk '{print $2}'`
+
+OWNER=root
+GROUP=wheel
+PERM=0644
+
+ZINST set root $(ROOT)/var/ylem/
+
+d 0755 - - lib/perl5
+d 0755 - - lib/perl5/site_perl
+d 0755 - - lib/perl5/site_perl/5.8
+d 0755 - - lib/perl5/site_perl/5.8/Mogstored
+
+c 0755 - - bin/ylm_stmon ../../src/storage_mon/ylm_stmon overwrite expand
+c 0755 - - bin/ylm_stmon-start ../../conf/prd/ylm_stmon-start overwrite expand
+c 0755 - - bin/ylm_stmon-stop ../../conf/prd/ylm_stmon-stop overwrite expand
+find $(PERM:stat) - - lib/perl5/site_perl/5.8/Mogstored/ ../../src/storage_mon/lib/Mogstored/ -name *.pm
+
+ZINST set autostart on
+ZINST pre-deactivate sudo -u nobody $(ROOT)/bin/ylm_stmon-stop
+
+ZINST start 30 sudo -u nobody $(ROOT)/bin/ylm_stmon-start
+ZINST stop 30 sudo -u nobody $(ROOT)/bin/ylm_stmon-stop
+

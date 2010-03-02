@@ -1,0 +1,513 @@
+#!/usr/bin/env perl
+###############################################################
+#                      辅助功能函数模块                       #
+###############################################################
+package Utils;
+use strict;
+use warnings;
+use Carp;
+use POSIX;
+
+# 以后台服务形式启动程序，修改自Proc::Daemon模块
+sub daemonize
+{
+	# 含有出错处理的fork操作
+	my $fork=sub {
+		my $pid;
+		while(1) {
+			if(defined($pid=fork)) {
+				return $pid;
+			} elsif($!=~/No more process/ || $!==POSIX::EAGAIN()) {
+				sleep 5;
+				redo;
+			} else {
+				croak "Can't fork: $!";
+			}
+		}
+	};
+	
+	my ($pid,$sid);
+	
+	# fork and exit parent
+	if($pid=$fork->()) {
+		exit 0;
+	}
+
+	# detach ourselves from controlling terminal
+	croak "Can't detach from controlling terminal"
+		unless $sid=POSIX::setsid();
+	
+	# fork again to prevent possiblities of acquiring a controlling terminal
+	$SIG{'HUP'}='IGNORE';
+	if($pid=$fork->()) {
+		exit 0;
+	}
+
+	# change working directory
+	chdir "/";
+
+	# clear file creating mask
+	umask 0;
+
+	# reopen stdin/stdout/stderr
+	open(STDIN,"+>/dev/null");
+	open(STDOUT,"+>&STDIN");
+	open(STDERR,"+>&STDIN");
+}
+
+# 从缓冲区中取出一行，并将其从缓冲区内容中剔除
+sub get_line
+{
+	my $pos=index($_[0],"\n");
+	if($pos>=0) {
+		my $line=substr($_[0],0,$pos);
+		$_[0]=($pos+1<=length($_[0]))?substr($_[0],$pos+1):"";
+		return $line;
+	}
+	return undef;
+}
+
+###############################################################
+#                   外部客户端连接处理模块                    #
+###############################################################
+package Connection::Service;
+use strict;
+use warnings;
+use base qw/Danga::Socket/;
+use fields qw/_stats/;
+
+use JSON;
+
+sub new
+{
+	my ($class,$sock,$stats_ref)=@_;
+	my $self=$class->SUPER::new($sock);
+	$self->{_stats}=$stats_ref;
+	return $self;
+}
+
+sub event_hup
+{
+	# 忽略SIGHUP信号
+}
+
+sub event_write
+{
+	my $self=shift;
+	my $stats=$self->{_stats};
+	if(
+		exists $stats->{_ts}
+		&& exists $stats->{res}
+	) {
+		my $str=to_json(
+			{
+				"_ts"=>$stats->{_ts},
+				"res"=>$stats->{res},
+			},{utf8=>1,escape_slash=>1});
+		$self->write("OK $str\n");
+	} else {
+		$self->write("ERR monitor data incomplete\n");
+	}
+	$self->close;
+}
+
+###############################################################
+#                  Exmon进程监控连接处理模块                  #
+###############################################################
+package Connection::Exmon;
+use strict;
+use warnings;
+use base qw/Danga::Socket/;
+use fields qw/_buffer/;
+
+sub new
+{
+	my ($class,$sock)=@_;
+	my $self=$class->SUPER::new($sock);
+	$self->{_buffer}="";
+	return $self;
+}
+
+sub event_hup
+{
+	# 忽略SIGHUP信号
+}
+
+sub event_read
+{
+	my $self=shift;
+	my $bref=$self->read(20_000);
+	return $self->close unless defined($bref);
+	$self->{_buffer}.=$$bref;
+	my $line;
+	while(defined($line=Utils::get_line($self->{_buffer}))) {
+		process_line($self,$line);
+	}
+}
+
+# 解析给定行内容，处理exmon命令
+sub process_line
+{
+	my $self=shift;
+	my $line=shift;
+	chomp($line);
+
+	if($line=~m/^kill/i) {
+		# 执行runprocs发出的kill命令，关闭连接并正常退出
+		$self->close;
+		exit(0);
+	} elsif($line=~m/^exit\s+(\d+)/i) {
+		# 执行runprocs发出的exit命令，关闭连接并以指定的错误码退出
+		$self->close;
+		exit($1);
+	} elsif($line=~m/^ruok/i) {
+		# 响应runprocs发出的ruok命令，表明自己仍然存活
+		$self->write("imok\n");
+	} elsif($line=~m/^\?|help/i) {
+		# 响应帮助命令
+		$self->write(<<EOF);
+Command:    Purpose:
+kill        Make this server exit normally.
+exit <n>    Make this server exit with error code <n>.
+ruok        Health check. Server will respond with "imok".
+help        Show this message.
+?           Show this message.
+EOF
+	} else {
+		# 其他命令都不予处理
+		$self->write("Unknown command\n");
+	}
+}
+
+###############################################################
+#                           主程序                            #
+###############################################################
+package main;
+use strict;
+use warnings;
+use POSIX;
+use Socket qw/:all/;
+use IO::Socket::INET;
+use Getopt::Long;
+use JSON;
+
+my $reload_conf=0;
+my $help=0;
+my $daemon=0;
+my $minfree=100;	# 可用元数据库的空闲空间至少要有100MB
+my $inter=5;	# 监控周期默认为5s
+my $confpath="$(ROOT)/conf/ylm_clmon/dbmon_boxes";
+my $listen_addr_service="0.0.0.0:4100";
+my $listen_addr_exmon="0.0.0.0:4101";
+
+# 监控值存储
+my $stats={};
+# 待监控的元数据库地址列表
+my $db_addrs;
+
+GetOptions(
+	"config=s"=>\$confpath,
+	"minfree=i"=>\$minfree,
+	"interval=i"=>\$inter,
+	"saddr=s"=>\$listen_addr_service,
+	"maddr=s"=>\$listen_addr_exmon,
+	"daemonize"=>\$daemon,
+	"help|?"=>\$help,
+) or usage();
+
+usage() if $help;
+
+# 读取元数据库地址列表
+$db_addrs=read_dbmon_list($confpath);
+
+Utils::daemonize() if $daemon;
+
+# 拦截SIGHUP并设置重载配置数据标志
+$SIG{"HUP"}=sub {
+	print STDERR "Reload configuration...\n";
+	$reload_conf=1;
+};
+
+# 创建Exmon监控进程使用的命令套接字
+my $sock_exmon=listening_socket($listen_addr_exmon)
+	or die "Failed to creating exmon command socket: $@ $listen_addr_exmon";
+# 创建外部服务使用的命令套接字
+my $sock_service=listening_socket($listen_addr_service)
+	or die "Failed to creating service socket: $@ $listen_addr_service";
+# 创建Exmon监控进程命令连接处理函数
+my $handler_exmon=connection_handler($sock_exmon,"Connection::Exmon",0);
+# 创建外部服务连接处理函数
+my $handler_service=connection_handler($sock_service,"Connection::Service",1,$stats);
+
+# 安装事件处理函数 
+Danga::Socket->AddOtherFds(
+	fileno($sock_exmon)=>$handler_exmon,
+	fileno($sock_service)=>$handler_service,
+);
+
+# 监控值更新代码
+my $main_mon;
+$main_mon=sub {
+	# 定时更新监控值
+	Danga::Socket->AddTimer($inter,$main_mon);
+
+	# 检查配置文件重新载入标志
+	if($reload_conf) {
+		$reload_conf=0;
+		# 读取元数据库地址列表
+		$db_addrs=read_dbmon_list($confpath);
+	}
+
+	# 首先清空原有的监控数据
+	%$stats=();
+	# 同步方式收集所有数据库状态
+	dbmon_collect($stats,$db_addrs);
+	reorder_volumes_by_status($stats,$db_addrs);
+	# 更新监控数据时戳
+	update_timestamp($stats);
+};
+$main_mon->();
+
+# 更改进程表中的名称以便编写其他控制脚本
+$0="ylm_clmon";
+
+# 进入事件循环
+Danga::Socket->EventLoop();
+
+#####################################################
+#                   辅助函数                        #
+#####################################################
+
+# 根据dbmon的监控数据按照筛选策略对卷进行排序
+sub reorder_volumes_by_status
+{
+	my ($stats,$mon_addrs)=@_;
+	return unless defined($stats) && defined($mon_addrs);
+	# 监控数据结构：
+	# {
+	# 	"_ts"=>监控数据更新时戳,
+	# 	"dbmon"=>{
+	# 		"0"=>{	# 卷0的元数据库master侧监控数据
+	# 			"_ts"=>数据库监控数据更新时戳,
+	# 			"iostat"=>{
+	# 				"util"=>I/O时间使用率，0~100，越小越闲
+	# 			},
+	# 			"diskfree"=>{
+	# 				"perc"=>磁盘空间使用率，0~100，越小越闲
+	# 				"used"=>已用磁盘空间，以KB为单位
+	# 				"total"=>总磁盘空间，以KB为单位
+	# 				"avail"=>可用磁盘空间，以KB为单位
+	# 			},
+	# 			"dbquery"=>{
+	# 				"status"=>数据库活动状态，1表示活动，0表示无反应
+	# 			},
+	# 		},
+	# 		"1"=>{	# 卷1的元数据库master侧监控数据
+	# 			...	# 若该卷的监控数据无法获得，则这里为空
+	# 		},
+	# 		...
+	# 	},
+	# }
+	# 监控服务地址列表数据结构：
+	# {
+	# 	"0"=>{	# 卷0的地址属性
+	# 		"dbmon"=>该卷的元数据库master侧主机名
+	# 		"dbmon_ip"=>元数据库master侧主机IP
+	# 		"tracker"=>该卷的Tracker VIP主机名
+	# 	},
+	# 	"1"=>{	# 卷1的地址属性
+	# 		...
+	# 	},
+	# 	...
+	# }
+	my @cands=();
+	for my $vid (keys %{$stats->{dbmon}}) {
+		# 跳过元数据库地址未知的卷
+		next unless(exists $mon_addrs->{$vid} && exists $mon_addrs->{$vid}{tracker});
+		my $score;
+		my $tracker=$mon_addrs->{$vid}{tracker};
+		my $vol_stat=$stats->{dbmon}{$vid};
+		if(
+			exists $vol_stat->{dbquery}
+			&& exists $vol_stat->{iostat}
+			&& exists $vol_stat->{diskfree}
+		) {
+			if($vol_stat->{dbquery}{status}) {
+				if($vol_stat->{diskfree}{avail}>$minfree*1024) {
+					# 根据I/O繁忙程度和磁盘空闲度计算对应卷的评分
+					$score=(100-$vol_stat->{iostat}{util})*10000+(100-$vol_stat->{diskfree}{perc});
+				} else {
+					# 最小空间需求不满足，对应卷评分为0
+					$score=0;
+				}
+			} else {
+				# 数据库非活动，对应卷不可用
+				$score=-1;
+			}
+		} else {
+			$score=-1;
+		}
+
+		# 对可用卷的评分附加一个小的随机扰动，使评分相同的可用卷随机排列
+		$score+=int(100*rand())/100 if $score>0;
+
+		push(
+			@cands,
+			{
+				"vol"=>$vid,
+				"score"=>"$score",
+				"tracker"=>$tracker,
+			}
+		);
+	}
+
+	# 按照评分对卷进行排序，并将排序结果更新到监控数据里。评分=0的卷表示master db可用空间不足，评分<0的卷表示对应卷内的
+	# master db已经不再活动，但仍然保留其信息，以便客户端获取完整的卷列表。
+	@cands=sort {$b->{score}<=>$a->{score}} @cands;
+	$stats->{res}=[@cands];
+}
+
+# 以同步方式收集给定列表里的dbmon状态数据
+sub dbmon_collect
+{
+	my ($stats,$mon_addrs)=@_;
+	return unless defined($stats) && defined($mon_addrs);
+	for my $vid (keys %$mon_addrs) {
+		my $dbmon_ip=$mon_addrs->{$vid}{dbmon_ip};
+		my $sock=IO::Socket::INET->new(
+			PeerHost=>$dbmon_ip,
+			PeerPort=>4000,
+			Timeout=>0.01,	# 对端无法连接时会立刻出错，不会等待；此处的超时10ms在网络连接拥塞时会起作用，避免阻塞过久
+		);
+		if(defined($sock)) {
+			# 已连接上对应的dbmon服务，读取监控数据
+			my $str=<$sock>;
+			$sock->close;
+			chomp($str);
+
+			if($str=~/^OK\s+(.*)$/) {
+				# dbmon返回正常监控数据
+				my $json=$1;
+				my $data;
+				eval {
+					$data=from_json($json,{utf8=>1});
+				};
+				if(!$@) {
+					# JSON解析结果正常
+					$stats->{dbmon}{$vid}=$data;
+				} else {
+					# JSON解析失败
+					print STDERR "Failed to parse JSON string returned by database monitor ($dbmon_ip:4000) of volume $vid:\n$json\n";
+					$stats->{dbmon}{$vid}={};
+				}
+			} else {
+				# dbmon返回错误信息或格式不正确
+				print STDERR "Got erroneous data from database monitor ($dbmon_ip:4000) of volume $vid:\n$str\n";
+				$stats->{dbmon}{$vid}={};
+			}
+		} else {
+			# 无法连接上对应的dbmon服务
+			print STDERR "Cannot connect to database monitor ($dbmon_ip:4000) of volume $vid\n";
+			$stats->{dbmon}{$vid}={};
+		}
+	}
+}
+
+# 更新监控数据时戳
+sub update_timestamp
+{
+	my $stats=shift||return;
+	$stats->{_ts}="".time();
+}
+
+# 读取并解析给定的数据库监控主机列表文件内容
+sub read_dbmon_list
+{
+	my $path=shift;
+	my $res={};
+	die "Master database list not exist"
+		unless defined($path) && -s $path;
+	open(my $fh,"<",$path)
+		or die "Cannot open master database list $path: $!";
+	while(<$fh>) {
+		chomp;
+		# 忽略以#开头的注释行
+		next if /^\s*#/;
+		# 去除开头和结尾的空白
+		s/^\s+|\s+$//g;
+		# 忽略空白行
+		next if length==0;
+		my ($vol_id,$dbmon_host,$tracker_vip)=split(" ",$_,3);
+		die "Unrecognizable line at $.\n"
+			unless defined($vol_id) && defined($dbmon_host) && defined($tracker_vip);
+		my $db_res=inet_aton($dbmon_host);
+		die "Unresolvable hostname specified: $dbmon_host\n"
+			unless defined($db_res);
+		$res->{$vol_id}={					# Volume ID
+			"dbmon"=>$dbmon_host,			# Master metadb hostname for the volume
+			"dbmon_ip"=>inet_ntoa($db_res),	# Master metadb IP for the volume
+			"tracker"=>$tracker_vip,		# Tracker VIP hostname for the volume
+		};
+	}
+	close($fh);
+	return $res;
+}
+
+# 显示帮助信息并正常退出
+sub usage
+{
+	print <<EOF;
+$0 [--config=<config file>] [--minfree=<minfree space>] [--interval=<interval in seconds>] [--saddr=<service addr>] [--maddr=<exmon addr>] [--daemonize] [--help]
+
+Options:
+    --config      Specifies the path of database monitor address list file. Default to $(ROOT)/conf/ylm_clmon/dbmon_boxes.
+    --minfree     Specifies the minimum requested free space on usable metadatabase (in MB). Default to 100 MB.
+    --interval    Specifies the monitoring interval in seconds. Default to 5 s.
+    --saddr       Specifies the full address for service port. Default to 0.0.0.0:4100.
+    --maddr       Specifies the full address for exmon port. Default to 0.0.0.0:4101.
+    --daemonize   Force the server running as a daemon. Run as normal app by default.
+    --help        Show this message.
+EOF
+	exit 0;
+}
+
+# 根据给定监听地址和端口创建非阻塞监听套接字
+sub listening_socket
+{
+	my $addr=shift;
+	my $queue_len=shift||10;
+	my $sock=IO::Socket::INET->new(
+		LocalAddr=>$addr,
+		Type=>SOCK_STREAM,
+		Proto=>IPPROTO_TCP,
+		Reuse=>1,
+		Blocking=>0,
+		Listen=>$queue_len,
+	);
+	return $sock;
+}
+
+# 根据给定的服务端口和连接处理类名创建对应的连接处理函数
+sub connection_handler
+{
+	my $sock_server=shift;
+	my $class=shift or die "A handler class must be given";
+	my $act_mode=shift(@_)?1:0;	# 1 表示主动响应，0 表示被动响应
+	my @args=@_;
+	my $handler=sub {
+		my $csock=$sock_server->accept;
+		return unless $csock;
+		$csock->autoflush(1);
+		$csock->blocking(0);
+		setsockopt($csock,IPPROTO_TCP,TCP_NODELAY,pack("l",1))
+			or die "Failed to enable TCP_NODELAY option for client connection: $@";
+		my $client=$class->new($csock,@args);
+		if($act_mode) {
+			$client->watch_write(1);
+		} else {
+			$client->watch_read(1);
+		}
+	};
+	return $handler;
+}
+

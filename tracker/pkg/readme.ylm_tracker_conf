@@ -1,0 +1,11 @@
+YLEM - Yahoo! Lightweighted filE systeM
+* Description
+This package contains the necessary config files for YLEM tracker.
+
+* Changelog
+Version 1.1
+	- disabled old_repl_compat and increased the delete/replication worker number
+
+Version 1.0
+	- initial version
+

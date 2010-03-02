@@ -1,0 +1,11 @@
+#!/bin/sh
+ROOT=/usr
+# MetaDB and tracker name list for cluster monitoring
+YLM_CLMON_CONFIG=/etc/ylm_clmon/dbmon_boxes
+# Minimal status check interval (Unit: s)
+YLM_CLMON_INTERVAL=5
+# Minimal free disk space needed for considering node to be usable (Unit: MB)
+YLM_CLMON_MINFREE=100
+
+exec $ROOT/bin/ylm_clmon --daemonize --config $YLM_CLMON_CONFIG --interval $YLM_CLMON_INTERVAL --minfree $YLM_CLMON_MINFREE
+

@@ -1,0 +1,15 @@
+PRODUCT_NAME=ylm_frontend_keydb
+VERSION=`grep 'Version' ../readme.ylm_frontend_keydb|head -1|awk '{print $2}'`
+CUSTODIAN=xiaozhe.wang@alibaba-inc.com http://twiki.corp.cnb.yahoo.com:9999/twiki/bin/view/PlatForm/Ylem
+SHORT_DESC=`head -1 ../readme.ylm_frontend_keydb`
+LONG_DESC=`cat ../readme.ylm_frontend_keydb`
+
+OWNER=root
+GROUP=wheel
+PERM=0644
+
+PACKAGE_OS_SPECIFIC = no
+d 0755 - - share/pear/ylem
+
+c - - - share/pear/ylem/keydb.inc ../../src/ylem/inc/prd/keydb.inc overwrite expand
+

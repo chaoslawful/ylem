@@ -1,0 +1,423 @@
+#!/usr/bin/env perl
+###############################################################
+#                      辅助功能函数模块                       #
+###############################################################
+package Utils;
+use strict;
+use warnings;
+use Carp;
+use POSIX;
+
+# 以后台服务形式启动程序，修改自Proc::Daemon模块
+sub daemonize
+{
+	# 含有出错处理的fork操作
+	my $fork=sub {
+		my $pid;
+		while(1) {
+			if(defined($pid=fork)) {
+				return $pid;
+			} elsif($!=~/No more process/ || $!==POSIX::EAGAIN()) {
+				sleep 5;
+				redo;
+			} else {
+				croak "Can't fork: $!";
+			}
+		}
+	};
+	
+	my ($pid,$sid);
+	
+	# fork and exit parent
+	if($pid=$fork->()) {
+		exit 0;
+	}
+
+	# detach ourselves from controlling terminal
+	croak "Can't detach from controlling terminal"
+		unless $sid=POSIX::setsid();
+	
+	# fork again to prevent possiblities of acquiring a controlling terminal
+	$SIG{'HUP'}='IGNORE';
+	if($pid=$fork->()) {
+		exit 0;
+	}
+
+	# change working directory
+	chdir "/";
+
+	# clear file creating mask
+	umask 0;
+
+	# reopen stdin/stdout/stderr
+	open(STDIN,"+>/dev/null");
+	open(STDOUT,"+>&STDIN");
+	open(STDERR,"+>&STDIN");
+}
+
+# 从缓冲区中取出一行，并将其从缓冲区内容中剔除
+sub get_line
+{
+	my $pos=index($_[0],"\n");
+	if($pos>=0) {
+		my $line=substr($_[0],0,$pos);
+		$_[0]=($pos+1<=length($_[0]))?substr($_[0],$pos+1):"";
+		return $line;
+	}
+	return undef;
+}
+
+###############################################################
+#                   外部客户端连接处理模块                    #
+###############################################################
+package Connection::Service;
+use strict;
+use warnings;
+use base qw/Danga::Socket/;
+use fields qw/_stats/;
+
+use JSON;
+
+sub new
+{
+	my ($class,$sock,$stats_ref)=@_;
+	my $self=$class->SUPER::new($sock);
+	$self->{_stats}=$stats_ref;
+	return $self;
+}
+
+sub event_hup
+{
+	# 忽略SIGHUP信号
+}
+
+sub event_write
+{
+	my $self=shift;
+	# 响应客户端获取监控数据的请求
+	my $stats=$self->{_stats};
+	if(
+		exists $stats->{_ts}
+		&& exists $stats->{diskfree}
+		&& exists $stats->{iostat}
+		&& exists $stats->{dbquery}
+	) {
+		my $str=to_json($stats,{utf8=>1,escape_slash=>1});
+		$self->write("OK $str\n");
+	} else {
+		$self->write("ERR monitor data incomplete\n");
+	}
+	$self->close;
+}
+
+###############################################################
+#                  Exmon进程监控连接处理模块                  #
+###############################################################
+package Connection::Exmon;
+use strict;
+use warnings;
+use base qw/Danga::Socket/;
+use fields qw/_buffer/;
+
+sub new
+{
+	my ($class,$sock)=@_;
+	my $self=$class->SUPER::new($sock);
+	$self->{_buffer}="";
+	return $self;
+}
+
+sub event_hup
+{
+	# 忽略SIGHUP信号
+}
+
+sub event_read
+{
+	my $self=shift;
+	my $bref=$self->read(20_000);
+	return $self->close unless defined($bref);
+	$self->{_buffer}.=$$bref;
+	my $line;
+	while(defined($line=Utils::get_line($self->{_buffer}))) {
+		process_line($self,$line);
+	}
+}
+
+# 解析给定行内容，处理exmon命令
+sub process_line
+{
+	my $self=shift;
+	my $line=shift;
+	chomp($line);
+
+	if($line=~m/^kill/i) {
+		# 执行runprocs发出的kill命令，关闭连接并正常退出
+		$self->close;
+		exit(0);
+	} elsif($line=~m/^exit\s+(\d+)/i) {
+		# 执行runprocs发出的exit命令，关闭连接并以指定的错误码退出
+		$self->close;
+		exit($1);
+	} elsif($line=~m/^ruok/i) {
+		# 响应runprocs发出的ruok命令，表明自己仍然存活
+		$self->write("imok\n");
+	} elsif($line=~m/^\?|help/i) {
+		# 响应帮助命令
+		$self->write(<<EOF);
+Command:    Purpose:
+kill        Make this server exit normally.
+exit <n>    Make this server exit with error code <n>.
+ruok        Health check. Server will respond with "imok".
+help        Show this message.
+?           Show this message.
+EOF
+	} else {
+		# 其他命令都不予处理
+		$self->write("Unknown command\n");
+	}
+}
+
+###############################################################
+#                           主程序                            #
+###############################################################
+package main;
+use strict;
+use warnings;
+use POSIX;
+use Socket qw/:all/;
+use IO::Socket::INET;
+use Getopt::Long;
+use DBI;
+
+my $help=0;
+my $daemon=0;
+my $inter=5;	# 监控周期默认为5s
+my $db_root="$(ROOT)/var/mysql/data/";
+my $db_host="localhost";
+my $db_user="root";
+my $db_pass="";
+my $listen_addr_service="0.0.0.0:4000";
+my $listen_addr_exmon="0.0.0.0:4001";
+
+# 监控值存储
+my $stats={};
+
+GetOptions(
+	"root=s"=>\$db_root,
+	"interval=i"=>\$inter,
+	"saddr=s"=>\$listen_addr_service,
+	"maddr=s"=>\$listen_addr_exmon,
+	"host=s"=>\$db_host,
+	"user=s"=>\$db_user,
+	"password=s"=>\$db_pass,
+	"daemonize"=>\$daemon,
+	"help|?"=>\$help,
+) or usage();
+
+usage() if $help;
+Utils::daemonize() if $daemon;
+
+# 忽略SIGHUP信号
+$SIG{"HUP"}="IGNORE";
+
+# 创建Exmon监控进程使用的命令套接字
+my $sock_exmon=listening_socket($listen_addr_exmon)
+	or die "Failed to creating exmon command socket: $@ $listen_addr_exmon";
+# 创建外部服务使用的命令套接字
+my $sock_service=listening_socket($listen_addr_service)
+	or die "Failed to creating service socket: $@ $listen_addr_service";
+# 创建Exmon监控进程命令连接处理函数
+my $handler_exmon=connection_handler($sock_exmon,"Connection::Exmon",0);
+# 创建外部服务连接处理函数
+my $handler_service=connection_handler($sock_service,"Connection::Service",1,$stats);
+
+# 安装事件处理函数 
+Danga::Socket->AddOtherFds(
+	fileno($sock_exmon)=>$handler_exmon,
+	fileno($sock_service)=>$handler_service,
+);
+
+# 监控值更新代码
+my $main_mon;
+$main_mon=sub {
+	# 定时更新监控值
+	Danga::Socket->AddTimer($inter,$main_mon);
+	# 首先清空原有的监控数据
+	%$stats=();
+	# 获取并更新监控数据
+	update_diskstat($stats,$db_root);
+	update_dbstat($stats,$db_host,$db_user,$db_pass);
+	# 更新监控数据时戳
+	update_timestamp($stats);
+};
+$main_mon->();
+
+# 更改进程列表中的名称以便编写其他控制脚本
+$0="ylm_dbmon";
+
+# 进入事件循环
+Danga::Socket->EventLoop();
+
+#####################################################
+#                   辅助函数                        #
+#####################################################
+
+# 更新监控数据时戳
+sub update_timestamp
+{
+	my $stats=shift;
+	$stats->{_ts}="".time();
+}
+
+# 调用df和iostat，解析出数据库数据目录所在磁盘的空间使用率和I/O使用率并更新监控数据
+sub update_diskstat
+{
+	my ($stats,$db_root)=@_;
+# 下面的命令生成结果为：
+#	Linux 2.6.18-8.el5xen (ds1.platform.yahoo.com)  2008年05月06日
+#
+#	Device:    rrqm/s wrqm/s   r/s   w/s  rsec/s  wsec/s    rkB/s    wkB/s avgrq-sz avgqu-sz   await  svctm  %util
+#	sda          1.25  60.91  1.53 14.40  110.36  602.94    55.18   301.47    44.78     0.35   22.17   1.78   2.84
+	my $cmd_iostat="iostat -dx 1 1";
+# 下面的命令生成结果为：
+# Filesystem         1024-blocks      Used Available Capacity 挂载点
+# -                     73988096  18306540  51862504      27% /
+	my $cmd_df="df -P -l -k ".$db_root;
+
+	die "Given database root path not exist!" if !-e $db_root;
+
+	my ($fh,$line);
+	open($fh,"$cmd_df|") or die "Failed to execute command '$cmd_df': $!";
+	<$fh>;	# 跳过标题行
+	$line=<$fh>;
+	close($fh);
+
+	# 解析df命令的输出结果
+	chomp($line);
+	my @fields=split(" ",$line);
+	my (undef,$total,$used,$avail,$perc,undef)=@fields;
+
+	# 获得数据库根目录所在磁盘设备的主设备号
+	my $st_dev=(stat $db_root)[0];
+	my $st_major=$st_dev>>8;
+
+	$stats->{diskfree}{total}=$total;
+	$stats->{diskfree}{used}=$used;
+	$stats->{diskfree}{avail}=$avail;
+	$stats->{diskfree}{perc}=substr($perc,0,-1);	# 去掉结尾的%号
+
+	# 解析/proc/partitions文件内容，创建设备名称到主设备号的转换映射表
+	my %dev_map=();
+	open($fh,"</proc/partitions") or die "Failed to open file /proc/partitions: $!";
+	<$fh> for(1..2);	# 跳过头2行无用信息
+	while($line=<$fh>) {
+		chomp($line);
+		my ($major,undef,undef,$name)=split(" ",$line);
+		$dev_map{$name}=$major;	# 该文件中列出的主设备号是十进制形式
+	}
+	close($fh);
+	
+	# 解析iostat命令的输出结果
+	open($fh,"$cmd_iostat|") or die "Failed to execute command '$cmd_iostat': $!";
+	<$fh> for(1..3);	# 跳过头3行无用信息
+	while($line=<$fh>) {
+		chomp($line);
+		$line=~s/^\s+|\s+$//g;
+		next if length($line)==0;
+
+		if($line=~m/^(\S+).*\s+(\S+)$/) {
+			my ($device,$util)=($1,$2);
+			my $major=$dev_map{$device};	# 将设备名称转换为对应的主设备号以便比较
+			if(defined($major) && $major==$st_major) {
+				# 当前设备含有数据库目录所在的分区，iostat结果有用
+				$stats->{iostat}{util}=substr($util,0,-1);	# 去掉结尾的%号
+				last;
+			}
+		}
+	}
+	close($fh);
+}
+
+# 连接数据库并执行简单的查询语句，根据查询结果更新监控数据
+sub update_dbstat
+{
+	my $stats=shift;
+	my ($dbhost,$dbuser,$dbpass)=@_;
+	my $stat_query="select 1";
+	eval {
+		my $dbh=DBI->connect("DBI:mysql:host=$dbhost;",$dbuser,$dbpass,{RaiseError=>1});
+		my $aref=$dbh->selectall_arrayref($stat_query);
+		if(@$aref>0 && @{$aref->[0]}>0 && $aref->[0][0]==1) {
+			$stats->{dbquery}{status}="1";	# 1表示成功
+			die "OK";
+		} else {
+			die "ERR abnormal query result";
+		}
+	};
+	if($@ !~ /^OK /) {
+		print STDERR "Database query failed: $@\n";
+		$stats->{dbquery}{status}="0";	# 0 表示失败
+	}
+}
+
+# 显示帮助信息并正常退出
+sub usage
+{
+	print <<EOF;
+$0 [--root=<database root path>] [--host=<database host>] [--user=<database user>] [--password=<database password>] [--interval=<interval in seconds>] [--saddr=<service addr>] [--maddr=<exmon addr>] [--daemonize] [--help]
+
+Options:
+    --root        Specifies the root path of database data files. Default to $(ROOT)/var/mysql/data/.
+    --host        Specifies the database host. Default to localhost.
+    --user        Specifies the database monitor user. Default to root.
+    --password    Specifies the database monitor password. Default to empty.
+    --interval    Specifies the monitoring interval in seconds. Default to 5 s.
+    --saddr       Specifies the full address for service port. Default to 0.0.0.0:4000.
+    --maddr       Specifies the full address for exmon port. Default to 0.0.0.0:4001.
+    --daemonize   Force the server running as a daemon. Run as normal app by default.
+    --help        Show this message.
+EOF
+	exit 0;
+}
+
+# 根据给定监听地址和端口创建非阻塞监听套接字
+sub listening_socket
+{
+	my $addr=shift;
+	my $queue_len=shift||10;
+	my $sock=IO::Socket::INET->new(
+		LocalAddr=>$addr,
+		Type=>SOCK_STREAM,
+		Proto=>IPPROTO_TCP,
+		Reuse=>1,
+		Blocking=>0,
+		Listen=>$queue_len,
+	);
+	return $sock;
+}
+
+# 根据给定的服务端口和连接处理类名创建对应的连接处理函数
+sub connection_handler
+{
+	my $sock_server=shift;
+	my $class=shift or die "A handler class must be given";
+	my $act_mode=shift(@_)?1:0;	# 1 表示主动响应，0 表示被动响应
+	my @args=@_;
+	my $handler=sub {
+		my $csock=$sock_server->accept;
+		return unless $csock;
+		$csock->autoflush(1);
+		$csock->blocking(0);
+		setsockopt($csock,IPPROTO_TCP,TCP_NODELAY,pack("l",1))
+			or die "Failed to enable TCP_NODELAY option for client connection: $@";
+		my $client=$class->new($csock,@args);
+		if($act_mode) {
+			$client->watch_write(1);
+		} else {
+			$client->watch_read(1);
+		}
+	};
+	return $handler;
+}
+

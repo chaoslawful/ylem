@@ -1,0 +1,5 @@
+#!/bin/sh
+# 注意：这里不能直接用killall，因为进程运行时替换了自己的名称，killall无法找到它们
+ps axww|grep ylm_tracker|grep -v grep|grep -v yinst|grep -v stop|awk '{print $1}'|xargs -n1 kill
+exit 0
+

@@ -1,0 +1,26 @@
+本目录下保存了YLEM系统的各个服务组件，其中各个组件的功能说明如下：
+	frontend/	YLEM对外的前端服务
+	monitor/	YLEM各类监控服务
+	storage/	YLEM存储节点服务，即WebDAV服务
+	tracker/	YLEM控制节点服务
+
+需要手动安装的CPAN模块如下：
+	Danga::Socket
+	JSON
+	DBI
+	DBD::mysql
+	Perlbal
+	Gearman::Client::Async
+	Gearman::Server
+	IO::Stringy
+	Sys::Syscall
+	Net::Netmask
+	Compress::Zlib
+	Cache::Memcached::Fast
+可用如下命令行安装：
+	sudo cpan install Danga::Socket JSON DBI Perlbal Gearman::Server Gearman::Client::Async
+	sudo cpan install IO::Stringy Sys::Syscall Net::Netmask Compress::Zlib Cache::Memcached::Fast
+	sudo cpan install DBD::mysql 	# 本机需安装mysql client库及开发包
+
+# vim:ts=4
+

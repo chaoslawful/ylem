@@ -1,0 +1,277 @@
+#!/usr/bin/env perl
+use strict;
+use lib 'lib';
+use Mogstored::HTTPServer;
+
+use IO::Socket::INET;
+use POSIX qw(WNOHANG);
+use Perlbal 1.53;
+use FindBin qw($Bin $RealScript);
+use Gearman::Server 1.08;
+use Gearman::Client::Async 0.93;
+
+use Mogstored::HTTPServer::None;
+use Mogstored::SideChannelListener;
+use Mogstored::SideChannelClient;
+
+# State:
+my %on_death;             # pid -> subref (to run when pid dies)
+my %devnum_to_device;     # mogile device number (eg. 'dev1' would be '1') -> os device path (eg. '/dev/rd0')
+my %osdevnum_to_device;   # os device number (fetched via stat(file)[0]) -> os device path (ec. '/dev/rd0')
+my %iostat_listeners;     # fd => SideChannel client: clients interested in iostat data.
+my $iostat_available = 1; # bool: iostat working.  assume working to start.
+my ($iostat_pipe_r, $iostat_pipe_w);  # pipes for talking to iostat process
+
+# Config:
+my $opt_daemonize;
+my $opt_iostat = 1;  # default to on now
+my $max_conns = 10000;
+my $http_listen = "0.0.0.0:7500";
+my $mgmt_listen = "0.0.0.0:7501";
+
+# 默认文件存储设备挂载点目录
+my $docroot     = "$(ROOT)/var/ylem/";
+
+my $server      = "none";
+my $serverbin   = "";
+
+my %config_opts = (
+                   'iostat'       => \$opt_iostat,
+                   'daemonize|d'  => \$opt_daemonize,
+                   'httplisten=s' => \$http_listen,
+                   'mgmtlisten=s' => \$mgmt_listen,
+                   'docroot=s'    => \$docroot,
+                   'maxconns=i'   => \$max_conns,
+                   );
+usage() unless Getopt::Long::GetOptions(%config_opts);
+
+# initialize basic required Perlbal machinery, for any HTTP server
+Perlbal::run_manage_commands(qq{
+   CREATE SERVICE mogstored
+     SET role = web_server
+     SET docroot = $docroot
+
+    # don't listen... this is just a stub service.
+    CREATE SERVICE mgmt
+       SET role = management
+     ENABLE mgmt
+}, sub { print STDERR "$_[0]\n"; });
+
+# start HTTP server
+my $httpsrv_class = "Mogstored::HTTPServer::" . ucfirst($server);
+my $httpsrv       = $httpsrv_class->new(
+                                        listen   => $http_listen,
+                                        docroot  => $docroot,
+                                        maxconns => $max_conns,
+                                        bin      => $serverbin,
+                                        );
+$httpsrv->start;
+
+if ($opt_daemonize) {
+    $httpsrv->pre_daemonize;
+    Perlbal::daemonize();
+} else {
+    print "Running.\n";
+}
+
+$httpsrv->post_daemonize;
+
+# kill our children processes on exit:
+my $parent_pid = $$;
+
+$SIG{TERM} = $SIG{INT} = sub {
+    return unless $$ == $parent_pid; # don't let this be inherited
+    kill 'TERM', grep { $_ } keys %on_death;
+    POSIX::_exit(0);
+};
+
+# XXX: 忽略SIGHUP信号
+$SIG{HUP}='IGNORE';
+
+setup_iostat_pipes();
+start_disk_usage_process();
+start_iostat_process() if $opt_iostat;
+harvest_dead_children();  # every 2 seconds, it reschedules itself
+setup_sidechannel_listener();
+start_fidsizes_worker();
+
+# 更改进程列表中的名称以便编写其他控制脚本
+$0="ylm_stmon";
+
+# now start the main loop
+Perlbal::run();
+
+############################################################################
+
+sub usage {
+    my $note = shift;
+    $note = $note ? "NOTE: $note\n\n" : "";
+
+    die "${note}Usage: $0 [OPTS]
+
+OPTS:
+ --daemonize  -d        Daemonize
+ --httplisten=<ip:port> IP/Port HTTP server listens on
+ --mgmtlisten=<ip:port> IP/Port management/sidechannel listens on
+ --docroot=<path>       Docroot above device mount points.  Defaults to $(ROOT)/var/ylem/
+";
+
+}
+
+# accessor for SideChannelClient:
+sub Mogstored::iostat_available {
+    return $iostat_available;
+}
+
+sub harvest_dead_children {
+    my $dead = waitpid(-1, WNOHANG);
+    if ($dead > 0) {
+        my $code = delete $on_death{$dead};
+        $code->() if $code;
+    }
+    Danga::Socket->AddTimer(2, \&harvest_dead_children);
+}
+
+sub start_fidsizes_worker {
+
+    # Note: in this case, this load is *before* the fork (which happens
+    # in Gearman::Server's start_worker), so be careful nothing
+    # heavy/gross is added to the FIDSizes worker.
+    require Mogstored::ChildProcess::FIDSizes;
+    my $class = "Mogstored::ChildProcess::FIDSizes";
+    $class->pre_exec_init;
+
+    my $pid = Mogstored->gearman_server->start_worker(sub {
+        $class->exec;
+    });
+
+    # old Gearman::Servers didn't return pid integegers
+    if ($pid =~ /^\d+$/) {
+        Mogstored->on_pid_death($pid, \&start_fidsizes_worker);
+    }
+}
+
+sub Mogstored::on_pid_death {
+    my ($class, $pid, $code) = @_;
+    $on_death{$pid} = $code;
+}
+
+# returns $pid of child, if parent, else runs child.
+sub start_disk_usage_process {
+    my $child = fork;
+    unless (defined $child) {
+        Perlbal::log('crit', "Fork error creating disk usage tracking process");
+        return undef;
+    }
+
+    # if we're the parent.
+    if ($child) {
+        $on_death{$child} = sub {
+            start_disk_usage_process();  # start a new one
+        };
+        return $child;
+    }
+
+    require Mogstored::ChildProcess::DiskUsage;
+    my $class = "Mogstored::ChildProcess::DiskUsage";
+    $class->pre_exec_init;
+    $class->exec;
+}
+
+sub Mogstored::iostat_subscribe {
+    my ($class, $sock) = @_;
+    $iostat_listeners{fileno($sock->sock)} = $sock;
+}
+
+sub Mogstored::iostat_unsubscribe {
+    my ($class, $sock) = @_;
+    my $fdno = fileno($sock->sock);
+    return unless defined $fdno;
+    delete $iostat_listeners{$fdno};
+}
+
+sub setup_sidechannel_listener {
+    Mogstored::SideChannelListener->new($mgmt_listen);
+}
+
+my $iostat_read_buf = "";
+sub setup_iostat_pipes {
+    pipe ($iostat_pipe_r, $iostat_pipe_w);
+    IO::Handle::blocking($iostat_pipe_r, 0);
+    IO::Handle::blocking($iostat_pipe_w, 0);
+
+    Danga::Socket->AddOtherFds(fileno($iostat_pipe_r), sub {
+        read_from_iostat_child();
+    });
+}
+
+sub start_iostat_process {
+    my $pid = fork;
+    unless (defined $pid) {
+        warn "Fork for iostat failed: $!";
+        return;
+    }
+
+    if ($pid) {
+        # Parent
+        $on_death{$pid} = sub {
+            start_iostat_process();
+        };
+        return;
+    }
+
+    require Mogstored::ChildProcess::IOStat;
+    my $class = "Mogstored::ChildProcess::IOStat";
+    $class->pre_exec_init;
+    $class->exec;
+}
+
+# to be honest, I have no clue why this exists.  I just had to move it
+# around for multi-server refactoring, and I felt better not
+# understanding it but preserving than killing it.  in particular, why
+# is this "graceful"?  (gets called from SideChannelClient's
+# die_gracefully)
+sub Mogstored::on_sidechannel_die_gracefully {
+    if ($$ == $parent_pid) {
+        kill 'TERM', grep { $_ } keys %on_death;
+    }
+}
+
+sub Mogstored::get_iostat_writer_pipe { $iostat_pipe_w }
+
+# (runs in parent event-loop process)
+sub read_from_iostat_child {
+    my $data;
+    my $rv = sysread($iostat_pipe_r, $data, 10240);
+    return unless $rv && $rv > 0;
+
+    $iostat_read_buf .= $data;
+
+    # only write complete lines to sockets (in case for some reason we get
+    # a partial read and child process dies...)
+    while ($iostat_read_buf =~ s/(.+)\r?\n//) {
+        my $line = $1;
+        foreach my $out_sock (values %iostat_listeners) {
+            # where $line will be like "dev53\t53.23" or a "." to signal end of a group of devices.
+            $out_sock->write("$line\n");
+        }
+    }
+}
+
+my $gearman_server;
+sub Mogstored::gearman_server {
+    return $gearman_server ||= Gearman::Server->new;
+}
+
+my $gearman_client;
+sub Mogstored::gearman_client {
+    return $gearman_client ||=
+        Gearman::Client::Async->new(job_servers => [ Mogstored->gearman_server ]);
+}
+
+# Local Variables:
+# mode: perl
+# c-basic-indent: 4
+# indent-tabs-mode: nil
+# End:
+

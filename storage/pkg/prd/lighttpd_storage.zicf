@@ -1,0 +1,20 @@
+PRODUCT_NAME=lighttpd_storage
+VERSION=`grep 'Version' ../readme.lighttpd_storage|head -1|awk '{print $2}'`
+CUSTODIAN=yahoo-platform-comm@list.alibaba-inc.com http://twiki.corp.cnb.yahoo.com:9999/twiki/bin/view/PlatForm/Ylem
+SHORT_DESC=`head -1 ../readme.lighttpd_storage`
+LONG_DESC=`cat ../readme.lighttpd_storage`
+
+OWNER=root
+GROUP=wheel
+PERM=0644
+
+ZINST requires pkg lighttpd_storage_conf * *
+
+g - - - lib/ ../../src/lighttpd/src/.libs/*.so
+f 0755 - - bin/spawn-fcgi ../../src/lighttpd/src/spawn-fcgi
+f 0755 - - sbin/lighttpd ../../src/lighttpd/src/lighttpd
+f 0755 - - sbin/lighttpd-angel ../../src/lighttpd/src/lighttpd-angel
+
+# 使用lighttpd自带的RHEL init.d形式的启动脚本
+c 0755 - - bin/lighttpd ../../src/lighttpd/doc/rc.lighttpd.redhat overwrite expand
+
