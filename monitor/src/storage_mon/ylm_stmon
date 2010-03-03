@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/usr/bin/env perl -I/usr/share/ylm_stmon
 use strict;
 use lib 'lib';
 use Mogstored::HTTPServer;
