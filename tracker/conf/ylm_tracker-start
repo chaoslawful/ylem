@@ -1,0 +1,7 @@
+#!/bin/sh
+ROOT=/usr
+YLM_TRACKER_CONFIG=/etc/ylm_tracker/tracker.conf
+YLM_TRACKER_VOLUME=0
+
+exec $ROOT/bin/ylm_tracker --daemonize --config $YLM_TRACKER_CONFIG --volume_id $YLM_TRACKER_VOLUME
+

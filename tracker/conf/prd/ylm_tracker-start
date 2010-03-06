@@ -1,3 +1,0 @@
-#!/bin/sh
-exec $(ROOT)/bin/ylm_tracker --daemonize --config $(ylm_tracker__config) --volume_id $(ylm_tracker__volume)
-

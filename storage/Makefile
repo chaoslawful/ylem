@@ -1,10 +1,6 @@
-# Use Makefiles in yahoo_cfg_dev package
-ROOT=/home/y
-include $(ROOT)/share/yahoo_cfg/Make.defs
+all::
+	make -C src all
 
-SUBDIRS=src/
-
-include $(ROOT)/share/yahoo_cfg/Make.rules
-
-# Do not place any rules or targets above this line
+clean::
+	make -C src clean
 

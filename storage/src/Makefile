@@ -1,6 +1,6 @@
 all::
 	cd lighttpd;\
-	./configure --prefix=/home/z;\
+	./configure --prefix=/usr;\
 	make
 
 clean::
