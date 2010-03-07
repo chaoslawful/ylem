@@ -1,6 +1,9 @@
+PREFIX=`rpm --eval '%{_prefix}'`
+LIBDIR=`rpm --eval '%{_libdir}'`
+
 all::
 	cd lighttpd;\
-	./configure --prefix=/usr;\
+	./configure --prefix=$(PREFIX) --libdir=$(LIBDIR);\
 	make
 
 clean::
