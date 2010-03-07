@@ -43,9 +43,9 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root)
-%{_bindir}/ylm_clmon
-%{_bindir}/ylm_clmon-start
-%{_bindir}/ylm_clmon-stop
+%attr(0755,root,root) %{_bindir}/ylm_clmon
+%attr(0755,root,root) %{_bindir}/ylm_clmon-start
+%attr(0755,root,root) %{_bindir}/ylm_clmon-stop
 
 %changelog
 * Wed Mar 03 2010 qingwu <qingwu@taobao.com>

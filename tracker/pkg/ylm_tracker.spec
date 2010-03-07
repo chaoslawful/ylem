@@ -47,14 +47,13 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root)
-%{_bindir}/ylm_tracker
-%{_bindir}/ylm_tracker-start
-%{_bindir}/ylm_tracker-stop
+%attr(0755,root,root) %{_bindir}/ylm_tracker
+%attr(0755,root,root) %{_bindir}/ylm_tracker-start
+%attr(0755,root,root) %{_bindir}/ylm_tracker-stop
 %{_datadir}/ylm_tracker
 
 %changelog
 * Sun Mar 07 2010 qingwu <qingwu@taobao.com>
 + ylm_tracker-1.0.0-1
 - initial package
-
 

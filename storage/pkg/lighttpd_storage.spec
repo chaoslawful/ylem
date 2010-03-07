@@ -80,10 +80,10 @@ rm -rf %{buildroot}
 %{_libdir}/mod_userdir.so
 %{_libdir}/mod_usertrack.so
 %{_libdir}/mod_webdav.so
-%{_bindir}/spawn-fcgi
-%{_bindir}/lighttpd
-%{_sbindir}/lighttpd
-%{_sbindir}/lighttpd-angel
+%attr(0755,root,root) %{_bindir}/spawn-fcgi
+%attr(0755,root,root) %{_bindir}/lighttpd
+%attr(0755,root,root) %{_sbindir}/lighttpd
+%attr(0755,root,root) %{_sbindir}/lighttpd-angel
 %dir %attr(-,nobody,nobody) %{_var}/lib/ylem
 %dir %attr(-,nobody,nobody) %{_var}/log/ylm_storage
 

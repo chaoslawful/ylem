@@ -44,9 +44,9 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root)
-%{_bindir}/ylm_dbmon
-%{_bindir}/ylm_dbmon-start
-%{_bindir}/ylm_dbmon-stop
+%attr(0755,root,root) %{_bindir}/ylm_dbmon
+%attr(0755,root,root) %{_bindir}/ylm_dbmon-start
+%attr(0755,root,root) %{_bindir}/ylm_dbmon-stop
 
 %changelog
 * Wed Mar 03 2010 qingwu <qingwu@taobao.com>

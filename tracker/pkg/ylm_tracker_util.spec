@@ -43,9 +43,9 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root)
-%{_bindir}/mogdbsetup
-%{_bindir}/mogadm
-%{_bindir}/mogtool
+%attr(0755,root,root) %{_bindir}/mogdbsetup
+%attr(0755,root,root) %{_bindir}/mogadm
+%attr(0755,root,root) %{_bindir}/mogtool
 %{_datadir}/ylm_tracker_util
 
 %changelog

@@ -45,11 +45,11 @@ cp -r %{_sourcedir}/lib %{buildroot}%{_datadir}/ylm_stmon/
 rm -rf %{buildroot}
 
 %files
-%defattr(0644,root,root)
+%defattr(-,root,root)
 %attr(0755,root,root) %{_bindir}/ylm_stmon
 %attr(0755,root,root) %{_bindir}/ylm_stmon-start
 %attr(0755,root,root) %{_bindir}/ylm_stmon-stop
-%attr(-,root,root) %{_datadir}/ylm_stmon
+%{_datadir}/ylm_stmon
 
 %changelog
 * Wed Mar 03 2010 qingwu <qingwu@taobao.com>
