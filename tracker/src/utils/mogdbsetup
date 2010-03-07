@@ -1,8 +1,7 @@
-#!/usr/bin/env perl
+#!/usr/bin/env perl -I/usr/share/ylm_tracker_util
 use strict;
 use Getopt::Long;
 use lib 'lib';
-use lib '$(ROOT)/lib/perl5/site_perl/5.8/';
 use MogileFS::Store;
 
 # Rename binary in process list to make init scripts saner

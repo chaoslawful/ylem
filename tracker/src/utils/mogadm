@@ -1,9 +1,9 @@
-#!/usr/bin/env perl
+#!/usr/bin/env perl -I/usr/share/ylm_tracker_util
 # vim:ts=4 sw=4 ft=perl et:
 
 use strict;
 use warnings;
-use lib '$(ROOT)/lib/perl5/site_perl/5.8/';
+use lib 'lib';
 use Getopt::Long;
 use LWP::UserAgent;
 use Socket;

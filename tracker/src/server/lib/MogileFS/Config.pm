@@ -15,7 +15,7 @@ our ($DEFAULT_CONFIG, $MOGSTORED_STREAM_PORT, $DEBUG);
 $DEBUG = 0;
 
 # Tracker的默认配置文件位置
-$DEFAULT_CONFIG = "$(ROOT)/conf/ylem/tracker.conf";
+$DEFAULT_CONFIG = "/etc/ylm_tracker/tracker.conf";
 #$DEFAULT_MOG_ROOT = "/mnt/mogilefs";
 
 # 存储节点监控程序的默认命令端口

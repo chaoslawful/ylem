@@ -4,10 +4,10 @@ RPM_SOURCE_ROOT := $(RPM_ROOT)/SOURCES
 RPM_SPEC_ROOT := $(RPM_ROOT)/SPECS
 RPMBUILD_OPT := -bb --clean --rmspec --rmsource --define="_topdir $(RPM_ROOT)"
 PKGS := \
-	   ylm_clmon_conf \
-	   ylm_clmon \
-	   ylm_dbmon \
-	   ylm_stmon
+	ylm_tracker \
+	ylm_tracker_conf \
+	ylm_tracker_util \
+	ylm_tracker_util_conf
 
 all: $(PKGS)
 	find $(RPM_ROOT) -name '*.rpm' -exec mv '{}' $(PWD) ';'
@@ -19,30 +19,30 @@ prepare:
 	mkdir -p $(RPM_ROOT)/SPECS
 	mkdir -p $(RPM_ROOT)/SOURCES
 
-ylm_clmon_conf: prepare
-	cp -f ../conf/dbmon_boxes $(RPM_SOURCE_ROOT)/
+ylm_tracker: prepare
+	cp ../conf/ylm_tracker-start $(RPM_SOURCE_ROOT)/
+	cp ../conf/ylm_tracker-stop $(RPM_SOURCE_ROOT)/
+	cp -rf ../src/server/lib $(RPM_SOURCE_ROOT)/
+	cp ../src/server/ylm_tracker $(RPM_SOURCE_ROOT)/
 	cp -f $@.spec $(RPM_SPEC_ROOT)/
 	rpmbuild $(RPMBUILD_OPT) $(RPM_SPEC_ROOT)/$@.spec
 
-ylm_clmon: prepare
-	cp -f ../conf/ylm_clmon-start $(RPM_SOURCE_ROOT)/
-	cp -f ../conf/ylm_clmon-stop $(RPM_SOURCE_ROOT)/
-	cp -f ../src/cluster_mon/ylm_clmon $(RPM_SOURCE_ROOT)/
+ylm_tracker_conf: prepare
+	cp ../conf/tracker.conf $(RPM_SOURCE_ROOT)/
 	cp -f $@.spec $(RPM_SPEC_ROOT)/
 	rpmbuild $(RPMBUILD_OPT) $(RPM_SPEC_ROOT)/$@.spec
 
-ylm_dbmon: prepare
-	cp -f ../conf/ylm_dbmon-start $(RPM_SOURCE_ROOT)/
-	cp -f ../conf/ylm_dbmon-stop $(RPM_SOURCE_ROOT)/
-	cp -f ../src/database_mon/ylm_dbmon $(RPM_SOURCE_ROOT)/
+ylm_tracker_util: prepare
+	cp ../src/utils/mogdbsetup $(RPM_SOURCE_ROOT)/
+	cp ../src/utils/mogadm $(RPM_SOURCE_ROOT)/
+	cp ../src/utils/mogtool $(RPM_SOURCE_ROOT)/
+	cp -rf ../src/utils/lib $(RPM_SOURCE_ROOT)/
 	cp -f $@.spec $(RPM_SPEC_ROOT)/
 	rpmbuild $(RPMBUILD_OPT) $(RPM_SPEC_ROOT)/$@.spec
 
-ylm_stmon: prepare
-	cp -f ../conf/ylm_stmon-start $(RPM_SOURCE_ROOT)/
-	cp -f ../conf/ylm_stmon-stop $(RPM_SOURCE_ROOT)/
-	cp -f ../src/storage_mon/ylm_stmon $(RPM_SOURCE_ROOT)/
-	cp -rf ../src/storage_mon/lib $(RPM_SOURCE_ROOT)/
+ylm_tracker_util_conf: prepare
+	cp ../conf/admin.conf $(RPM_SOURCE_ROOT)/
+	cp ../conf/tools.conf $(RPM_SOURCE_ROOT)/
 	cp -f $@.spec $(RPM_SPEC_ROOT)/
 	rpmbuild $(RPMBUILD_OPT) $(RPM_SPEC_ROOT)/$@.spec
 

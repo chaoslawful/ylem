@@ -10,7 +10,7 @@ provides: ylm_stmon
 source0: ylm_stmon
 source1: ylm_stmon-start
 source2: ylm_stmon-stop
-source3: Mogstored
+source3: lib 
 requires: perl >= 5.8
 
 #buildrequires:
@@ -32,7 +32,7 @@ mkdir -p %{buildroot}%{_datadir}/ylm_stmon
 cp %{_sourcedir}/ylm_stmon %{buildroot}%{_bindir}/
 cp %{_sourcedir}/ylm_stmon-start %{buildroot}%{_bindir}/
 cp %{_sourcedir}/ylm_stmon-stop %{buildroot}%{_bindir}/
-cp -r %{_sourcedir}/Mogstored %{buildroot}%{_datadir}/ylm_stmon/
+cp -r %{_sourcedir}/lib %{buildroot}%{_datadir}/ylm_stmon/
 
 %post
 %{_bindir}/ylm_stmon-stop
