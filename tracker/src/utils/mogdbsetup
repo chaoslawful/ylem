@@ -1,7 +1,7 @@
-#!/usr/bin/env perl -I/usr/share/ylm_tracker_util
+#!/usr/bin/env perl
 use strict;
 use Getopt::Long;
-use lib 'lib';
+use lib '/usr/share/ylm_tracker_util/lib';
 use MogileFS::Store;
 
 # Rename binary in process list to make init scripts saner

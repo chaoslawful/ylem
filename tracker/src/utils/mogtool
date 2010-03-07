@@ -1,4 +1,4 @@
-#!/usr/bin/env perl -I/usr/share/ylm_tracker_util
+#!/usr/bin/env perl
 # vim:ts=4 sw=4 et ft=perl:
 
 =head1 NAME
@@ -532,7 +532,7 @@ Copyright (c) 2002-2004 Danga Interactive. All rights reserved.
 ##############################################################################
 
 use strict;
-use lib 'lib';
+use lib '/usr/share/ylm_tracker_util/lib';
 use Getopt::Long;
 use Pod::Usage qw{ pod2usage };
 use Digest::MD5 qw{ md5_hex };

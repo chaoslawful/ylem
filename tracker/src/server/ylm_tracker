@@ -1,4 +1,4 @@
-#!/usr/bin/env perl -I/usr/share/ylm_tracker
+#!/usr/bin/env perl
 #
 # MogileFS daemon
 #
@@ -9,7 +9,7 @@
 
 use strict;
 use warnings;
-use lib 'lib';
+use lib '/usr/share/ylm_tracker/lib';
 use MogileFS::Server;
 
 # Rename binary in process list to make init scripts saner
