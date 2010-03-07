@@ -24,7 +24,7 @@ rm -rf %{buildroot}
 
 %post
 %{_bindir}/lighttpd stop
-%{_bindir}/lighttpd start
+sudo -u nobody %{_bindir}/lighttpd start
 
 %preun
 %{_bindir}/lighttpd stop

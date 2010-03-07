@@ -37,7 +37,7 @@ cp -r %{_sourcedir}/lib %{buildroot}%{_datadir}/ylm_tracker/
 
 %post
 %{_bindir}/ylm_tracker-stop
-%{_bindir}/ylm_tracker-start
+sudo -u nobody %{_bindir}/ylm_tracker-start
 
 %preun
 %{_bindir}/ylm_tracker-stop

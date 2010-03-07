@@ -34,7 +34,7 @@ cp %{_sourcedir}/ylm_dbmon-stop %{buildroot}%{_bindir}/
 
 %post
 %{_bindir}/ylm_dbmon-stop
-%{_bindir}/ylm_dbmon-start
+sudo -u nobody %{_bindir}/ylm_dbmon-start
 
 %preun
 %{_bindir}/ylm_dbmon-stop

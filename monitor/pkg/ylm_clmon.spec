@@ -33,7 +33,7 @@ cp %{_sourcedir}/ylm_clmon-stop %{buildroot}%{_bindir}/
 
 %post
 %{_bindir}/ylm_clmon-stop
-%{_bindir}/ylm_clmon-start
+sudo -u nobody %{_bindir}/ylm_clmon-start
 
 %preun
 %{_bindir}/ylm_clmon-stop

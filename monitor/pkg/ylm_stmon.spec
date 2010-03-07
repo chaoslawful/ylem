@@ -36,7 +36,7 @@ cp -r %{_sourcedir}/lib %{buildroot}%{_datadir}/ylm_stmon/
 
 %post
 %{_bindir}/ylm_stmon-stop
-%{_bindir}/ylm_stmon-start
+sudo -u nobody %{_bindir}/ylm_stmon-start
 
 %preun
 %{_bindir}/ylm_stmon-stop
