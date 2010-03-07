@@ -23,11 +23,11 @@
 #fi
 
 if [ -z "$LIGHTTPD_CONF_PATH" ]; then
-	LIGHTTPD_CONF_PATH="$(ROOT)/conf/ylm_storage/lighttpd.conf"
+	LIGHTTPD_CONF_PATH="/etc/ylm_storage/lighttpd.conf"
 fi
 
 prog="lighttpd"
-lighttpd="$(ROOT)/sbin/lighttpd"
+lighttpd="/usr/sbin/lighttpd"
 RETVAL=0
 
 start() {
