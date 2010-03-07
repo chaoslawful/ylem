@@ -259,7 +259,7 @@ GetOptions(
 Getopt::Long::Configure("require_order", "no_pass_through");
 
 # 设置配置文件位置的查找顺序
-my @configs = ($opts{config}, "$(ROOT)/conf/ylm_tracker/admin.conf");
+my @configs = ($opts{config}, "/etc/ylm_tracker_util/admin.conf");
 
 foreach my $fn (reverse @configs) {
     next unless $fn && -e $fn;

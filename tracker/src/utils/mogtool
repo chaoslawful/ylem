@@ -578,7 +578,7 @@ abortWithUsage() unless
                );
 
 # XXX: 设置配置文件位置的查找顺序
-my @confs = ( $opts{conf}, "$(ROOT)/conf/ylm_tracker/tools.conf" );
+my @confs = ( $opts{conf}, "/etc/ylm_tracker_util/tools.conf" );
 
 foreach my $conf (@confs) {
     next unless $conf && -e $conf;
