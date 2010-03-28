@@ -23,10 +23,7 @@
 	3. 默认文件名的后缀通过文件Content-Type决定，可以以列表形式在配置文件中列出不同mimetype对应的
 	后缀名，未列出的mimetype和application/octet-stream的后缀统一为空
  */
-require("ylem/common.inc");
-require("ylem/tracker.inc");
-require("ylem/store.inc");
-require("ylem/monitor.inc");
+require("ylem_cli/ylem.inc");
 
 // 抑制PHP出错信息
 error_reporting(~E_ALL);

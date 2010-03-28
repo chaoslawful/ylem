@@ -71,10 +71,7 @@
 			)
 		)
  */
-require("ylem/common.inc");
-require("ylem/tracker.inc");
-require("ylem/store.inc");
-require("ylem/monitor.inc");
+require("ylem_cli/ylem.inc");
 
 // 抑制PHP出错信息
 error_reporting(~E_ALL);
@@ -197,7 +194,8 @@ if(count($file_lst)>0) {
 			}
 
 			// 当前卷中的文件处理完毕，关闭同Tracker服务的连接
-			tracker_close($trkr_h);
+			// XXX: 改为持久连接后不需要显式关闭同 Tracker 服务的连接
+			//tracker_close($trkr_h);
 		} else {
 			// 无法连接当前卷对应的Tracker服务，所有要保存到当前卷中的文件都要标记为出错
 			error_log("ERROR: Cannot connect to tracker service in volume $vol");

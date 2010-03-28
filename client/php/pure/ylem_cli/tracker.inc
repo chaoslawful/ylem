@@ -46,7 +46,7 @@ if(!defined("YLEM_FE_TRACKER")) {
 	 */
 	function tracker_connect($host,$timeout=0.1)
 	{
-		$fh=fsockopen($host,YLEM_TRACKER_PORT,$errno,$errstr,$timeout);
+		$fh=pfsockopen($host,YLEM_TRACKER_PORT,$errno,$errstr,$timeout);
 		return $fh;
 	}
 

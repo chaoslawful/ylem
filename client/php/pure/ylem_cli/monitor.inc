@@ -27,7 +27,7 @@ if(!defined("YLEM_FE_MONITOR")) {
 	 */
 	function monitor_get_volumes()
 	{
-		$fh=fsockopen(YLEM_CLMON_HOST,YLEM_CLMON_PORT,$errno,$errstr,0.1);
+		$fh=pfsockopen(YLEM_CLMON_HOST,YLEM_CLMON_PORT,$errno,$errstr,0.1);
 		if(!$fh) {
 			return false;
 		} else {

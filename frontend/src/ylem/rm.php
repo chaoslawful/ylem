@@ -12,9 +12,7 @@
 	7. 继续处理下一个组中的文件
 	8. 全部文件处理完毕后，根据文件删除状况和响应内容格式构造对应的响应内容返回。
  */
-require("ylem/common.inc");
-require("ylem/tracker.inc");
-require("ylem/monitor.inc");
+require("ylem_cli/ylem.inc");
 
 // 抑制PHP出错信息
 error_reporting(~E_ALL);
