@@ -3,9 +3,9 @@ require("ylem_cli/ylem.inc");
 
 $tracker_host = "127.0.0.1";
 $volume = "0";
-$namespace = defined($argv[1]) ? $argv[1] : "test";
-$filename = defined($argv[2]) ? $argv[2] : "test.jpg";
-$mimetype = defined($argv[3]) ? $argv[3] : "application/octet-stream";
+$namespace = isset($argv[1]) ? $argv[1] : "test";
+$filename = isset($argv[2]) ? $argv[2] : "test.jpg";
+$mimetype = isset($argv[3]) ? $argv[3] : "application/octet-stream";
 
 $file_size = filesize($filename);
 
