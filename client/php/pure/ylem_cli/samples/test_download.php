@@ -11,7 +11,7 @@ if($handle) {
 	$res = tracker_get_paths($handle, $namespace, $filename);
 	if(count($res["paths"]) > 0) {
 		// 显示 YLEM 保存的文件 MIME-Type
-		echo "File MIME-Type: ", $res["mimetype"];
+		echo "File MIME-Type: ", $res["mimetype"], "\n";
 
 		$got_loc = false;
 		$urls = $res["paths"];
