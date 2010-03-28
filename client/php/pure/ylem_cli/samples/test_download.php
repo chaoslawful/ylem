@@ -20,7 +20,11 @@ if($handle) {
 			$size = store_get_file_size($urls[$i]);
 			if($size >= 0) {
 				// 当前下载 URL 可用，下载文件内容并回显到 stdout
-				store_echo_file($urls[$i]);
+				$ch = curl_init($urls[$i]);
+				if($ch) {
+					curl_exec($ch);
+					curl_close($ch);
+				}
 				$got_loc = true;
 				break;
 			}
