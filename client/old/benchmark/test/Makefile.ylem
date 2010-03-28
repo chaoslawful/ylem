@@ -1,0 +1,28 @@
+.SUFFIXES: .c .cc .o .lo
+
+DEFS = -DDEBUG
+COMPILE = $(CXX) -g -Wall -D_FILE_OFFSET_BITS=64 $(DEFS)
+INC_PATH = -I/home/y/include
+LIB_PATH = -L/home/y/lib -lylem_Client -lcurl
+TARGET_PATH = /usr/local/bin
+
+SHARED_OBJS = common_func.o dfs_func.o
+
+ALL_OBJS = $(SHARED_OBJS)
+
+ALL_PRGS = gen_files test_upload test_download test_delete combine_result
+
+all: $(ALL_OBJS) $(ALL_PRGS)
+.o:
+	$(COMPILE) -o $@ $<  $(SHARED_OBJS) $(LIB_PATH) $(INC_PATH)
+.c .cc:
+	$(COMPILE) -o $@ $<  $(SHARED_OBJS) $(LIB_PATH) $(INC_PATH)
+.c.o .cc.o:
+	$(COMPILE) -c -o $@ $<  $(INC_PATH)
+.c.lo .cc.lo:
+	$(COMPILE) -c -fPIC -o $@ $<  $(INC_PATH)
+install:
+	cp -f $(ALL_PRGS) /usr/local/bin
+clean:
+	rm -f $(ALL_OBJS) $(ALL_PRGS)
+

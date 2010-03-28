@@ -1,0 +1,26 @@
+PRODUCT_NAME=ylemClient
+VERSION=`grep 'Version' readme.ylem_common|head -1|awk '{print $2}'`
+CUSTODIAN=yahoo-platform-comm@list.alibaba-inc.com http://twiki.corp.cnb.yahoo.com:9999/twiki/bin/view/PlatForm/Ylem
+SHORT_DESC=`head -1 readme.ylem_common`
+LONG_DESC=`cat readme.ylem_common`
+
+OWNER=root
+GROUP=wheel
+PERM=0644
+
+# Make sure user "yahoo" could read/write binary log dir
+d 0755 yahoo users conf/ylemClient
+d 0755 yahoo users logs/ylemClient
+
+YINST requires pkg ports/log4cpp * *
+YINST requires pkg yconfig * *
+YINST requires pkg ycore++ * *
+#YINST requires pkg yfor * *
+
+f - - - lib/libylem_Client.so.1.0 ../src/common/libylem_Client.so.1.0
+s - - - lib/libylem_Client.so libylem_Client.so.1.0
+c - - - conf/ylemClient/log4cpp.conf ../conf/log4cpp.conf overwrite
+#c - - - conf/ylemClient/ylem_conf.xml ../conf/ylem_conf.xml overwrite
+#c - - - conf/ylemClient/ylem_yfor.conf ../conf/ylem_yfor.conf overwrite
+
+

@@ -1,0 +1,7 @@
+ylemClient source code placed here.
+ 
+* Directories organization:
+    src/
+    |
+    +--common/      Common Library Implementation
+    +--phpext/    	php extend Implementation

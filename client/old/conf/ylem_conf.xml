@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE config SYSTEM "yconfig.dtd">
+
+<!-- ylem configurations -->
+<config name="smp">
+
+	<!-- base field restrictions -->
+	<config name="bases">
+		<config name="trackers">
+			<prop key="yforhost" value="ds4.platform.yahoo.com"/>
+			<prop key="port" value="7001"/>
+		</config>
+
+	</config>
+
+</config>
+

@@ -1,0 +1,13 @@
+// $Id$
+// vim:ft=javascript
+
+// If your extension references something external, use ARG_WITH
+// ARG_WITH("yphp_ylem", "for yphp_ylem support", "no");
+
+// Otherwise, use ARG_ENABLE
+// ARG_ENABLE("yphp_ylem", "enable yphp_ylem support", "no");
+
+if (PHP_YPHP_YLEM != "no") {
+	EXTENSION("yphp_ylem", "yphp_ylem.cc");
+}
+

@@ -1,0 +1,25 @@
+PRODUCT_NAME=ylemClient_build_rhel
+VERSION=`grep 'Version' readme.ylem_build|head -1|awk '{print $2}'`
+CUSTODIAN=yahoo-platform-comm@list.alibaba-inc.com http://twiki.corp.cnb.yahoo.com:9999/twiki/bin/view/PlatForm/Ylem
+SHORT_DESC=`head -1 readme.ylem_build`
+LONG_DESC=`cat readme.ylem_build`
+
+OWNER=root
+GROUP=wheel
+PERM=0444
+
+YINST requires os rhel
+
+YINST requires pkg ports/cppunit
+YINST requires pkg ports/cppunit-devel
+YINST requires pkg ports/curl-devel 7.16.3 *
+
+YINST requires pkg base_dev
+YINST requires pkg log4cpp_y_dev 1.4.2 *
+YINST requires pkg yfor_dev 1.21 *
+YINST requires pkg ysecure_dev 1.62 *
+YINST requires pkg ycore_dev 1.22 *
+YINST requires pkg ycore++_dev 3.60 *
+YINST requires pkg yconfig_dev 1.2.3 *
+YINST requires pkg ysys_dev 2.16.1 *
+

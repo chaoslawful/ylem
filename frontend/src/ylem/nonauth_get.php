@@ -1,5 +1,4 @@
 <?php
-// vi:ft=php ts=4 sw=4
 /*
 	YLEM获取文件流程：
 	1. 接收文件下载请求，从query参数中获得本次操作的namespace和响应内容格式ret(对于文件下载没用！)
@@ -33,18 +32,17 @@ require("ylem/monitor.inc");
 error_reporting(~E_ALL);
 
 $version=filter_input(INPUT_GET,"version",FILTER_SANITIZE_STRING); 	// 接口版本，目前为1.0
+
 $params=array();
 $params["ns"]=filter_input(INPUT_GET,"ns",FILTER_SANITIZE_STRING);
 $params["id"]=filter_input(INPUT_GET,"id",FILTER_SANITIZE_STRING);
 $params["ct"]=filter_input(INPUT_GET,"ct",FILTER_SANITIZE_STRING);
 $params["fn"]=filter_input(INPUT_GET,"fn",FILTER_SANITIZE_STRING);
 $params["rd"]=filter_input(INPUT_GET,"rd",FILTER_SANITIZE_STRING);
-
-// XXX by ugg, add expires
 $params["ex"]=filter_input(INPUT_GET,"ex",FILTER_SANITIZE_STRING);
+
 // 默认30天
 $ex=(isset($params["ex"]) && $params["ex"])?$params["ex"]:false;		// 过期时间头
-
 $namespace=(isset($params["ns"]) && $params["ns"])?$params["ns"]:false; 	// 命名空间，大小写敏感
 $resid=(isset($params["id"]) && $params["id"])?$params["id"]:false; 		// 待下载文件的完整资源id("vol_id-file_id"形式)
 
@@ -55,10 +53,11 @@ if(!$namespace || strlen($namespace)==0
 	return;
 }
 
-$ct_type=(isset($params["ct"]) && $params["ct"])?$params["ct"]:false; 		// 选填参数，指定header中的Content-Type内容。
-$filename=(isset($params["fn"]) && $params["fn"])?$params["fn"]:false; 	// 选填参数，指定header中Content-Disposition里的filename，不填则默认为文件id加上可识别的Content-Type后缀。
+$ct_type=(isset($params["ct"]) && $params["ct"])?$params["ct"]:false; 	// 选填参数，指定header中的Content-Type内容。
+$filename=(isset($params["fn"]) && $params["fn"])?$params["fn"]:false; 	// 选填参数，指定header中Content-Disposition里的filename
+																		// 不填则默认为文件id加上可识别的Content-Type后缀。
 $redirect=(isset($params["rd"]) && $params["rd"])?$params["rd"]:false; 	// 选填参数，若无法获取指定文件则重定向到该URL，
-							// 不填则在无法获取文件时报告404错误
+																		// 不填则在无法获取文件时报告404错误
 
 // 若给定的文件资源ID不合法则产生400 Bad Request错误退出
 if(!is_canonical_resid($resid)) {
@@ -133,4 +132,6 @@ if(!$got_loc) {
 		header("HTTP/1.1 404 Failed to get content");
 	}
 }
+
+// vim:ft=php ts=4 sw=4
 ?>

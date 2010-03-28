@@ -1,0 +1,10 @@
+ylem is Yahoo! Lightweight filE systeM 
+
+This package is the ylem common library.
+ 
+* Changelog:
+Version 1.0.1
+	- change segemented upload block length from 200KB to 1MB
+
+Version 1.0
+    - initial version

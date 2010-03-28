@@ -1,5 +1,4 @@
 <?php
-// vi:ft=php ts=4 sw=4
 /*
 	YLEM删除文件流程：
 	1. 从query参数中获得本次操作的namespace和相应内容格式ret
@@ -23,6 +22,9 @@ error_reporting(~E_ALL);
 // 获取URL query参数，这些参数已经由PHP自动进行了URL decoding
 $version=filter_input(INPUT_GET,"version",FILTER_SANITIZE_STRING); 	// 接口版本，目前为1.0
 $namespace=filter_input(INPUT_GET,"ns",FILTER_SANITIZE_STRING); // 命名空间，大小写敏感
+$respfmt=filter_input(INPUT_GET,"ret",FILTER_SANITIZE_STRING); 	// 响应格式，大小写不敏感，json/xml
+$rmid=filter_input(INPUT_GET,"id",FILTER_SANITIZE_STRING); 		// 待删除文件完整ID列表，每个文件的完整ID必须为"vol_id-file_id"这种形式
+
 // 若接口版本串不对或未给出命名空间则直接返回404错误
 if(!$version || $version!="1.0"
 	|| !$namespace || strlen($namespace)==0) {
@@ -30,14 +32,13 @@ if(!$version || $version!="1.0"
 	return;
 }
 
-$respfmt=filter_input(INPUT_GET,"ret",FILTER_SANITIZE_STRING); 	// 响应格式，大小写不敏感，json/xml
 if(!$respfmt) {
 	$respfmt="json";
 } else {
 	// 给定了响应格式，全部转换为小写字母
 	$respfmt=strtolower($respfmt);
 }
-$rmid=filter_input(INPUT_GET,"id",FILTER_SANITIZE_STRING); 		// 待删除文件完整ID列表，每个文件的完整ID必须为"vol_id-file_id"这种形式
+
 $ids=array_filter(explode(",",$rmid),"is_canonical_resid"); 	// 将文件ID列表拆分开并过滤出有效的完整文件ID
 
 $res_lst=array();
@@ -82,7 +83,6 @@ if(count($ids)>0) {
 }
 
 // 开始生成响应结果
-
 $resp_str="";
 if($respfmt=="json") {
 	$resp_str.="[";
@@ -116,4 +116,6 @@ if($respfmt=="json") {
 // 输出响应内容
 header("Content-Type:text/plain;charset=utf-8");
 echo $resp_str;
+
+// vi:ft=php ts=4 sw=4
 ?>

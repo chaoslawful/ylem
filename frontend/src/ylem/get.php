@@ -1,5 +1,4 @@
 <?php
-// vi:ft=php ts=4 sw=4
 /*
 	YLEM获取文件流程：
 	1. 接收文件下载请求，从query参数中获得本次操作的namespace和响应内容格式ret(对于文件下载没用！)
@@ -35,6 +34,7 @@ $secure=new Crypt_XXTEA();
 $secure->setKey(YLEM_URL_SECURE_KEY);
 
 $version=filter_input(INPUT_GET,"version",FILTER_SANITIZE_STRING); 	// 接口版本，目前为1.0
+
 $enc=filter_input(INPUT_GET,"enc",FILTER_SANITIZE_STRING);				// 下载文件信息密文
 if(!$version || $version!="1.0" || !$enc) {
 	header("HTTP/1.1 400 Invalid parameter");
@@ -52,11 +52,10 @@ foreach($pairs as $pair) {
 	$params[$k]=$v;
 }
 
-// XXX by ugg, modify expires
 $ex=isset($params["ex"])?$params["ex"]:false; 	// 过期时间头，大小写敏感
-
 $namespace=isset($params["ns"])?$params["ns"]:false; 	// 命名空间，大小写敏感
 $resid=isset($params["id"])?$params["id"]:false; 		// 待下载文件的完整资源id("vol_id-file_id"形式)
+
 // 接口版本不符合要求或必选参数没有给出，返回400 Bad Request错误
 if(!isset($params["v"]) || $params["v"]!=$version
 	|| !$namespace || strlen($namespace)==0
@@ -171,4 +170,6 @@ if(!$got_loc) {
 		header("HTTP/1.1 404 Failed to get content");
 	}
 }
+
+// vi:ft=php ts=4 sw=4
 ?>

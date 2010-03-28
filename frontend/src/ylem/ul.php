@@ -1,5 +1,4 @@
 <?php
-// vi:ft=php ts=4 sw=4
 /*
 	YLEM上传文件流程：
 	1. 接收多个上传文件请求，从query参数中获得本次操作的namespace和响应内容格式ret
@@ -83,14 +82,14 @@ error_reporting(~E_ALL);
 // 获取URL query参数，这些参数已经由PHP自动进行了URL decoding
 $version=filter_input(INPUT_GET,"version",FILTER_SANITIZE_STRING); 	// 接口版本，目前为1.0
 $namespace=filter_input(INPUT_GET,"ns",FILTER_SANITIZE_STRING); // 命名空间，大小写敏感
+$respfmt=filter_input(INPUT_GET,"ret",FILTER_SANITIZE_STRING);	// 响应格式，大小写不敏感，json/xml
+
 // 若接口版本串不对或未给出命名空间则直接返回404错误
 if(!$version || $version!="1.0"
 	|| !$namespace || strlen($namespace)==0) {
 	header("HTTP/1.1 404 Invalid parameter");
 	return;
 }
-
-$respfmt=filter_input(INPUT_GET,"ret",FILTER_SANITIZE_STRING);	// 响应格式，大小写不敏感，json/xml
 if(!$respfmt) {
 	$respfmt="json";
 } else {
@@ -212,7 +211,6 @@ if(count($file_lst)>0) {
 }
 
 // 生成响应结果
-
 $resp_str="";
 if($respfmt=="json") {
 	$resp_str.="[";
@@ -330,4 +328,6 @@ function get_file_list($info_lst)
 	}
 	return $fl;
 }
+
+// vi:ft=php ts=4 sw=4
 ?>

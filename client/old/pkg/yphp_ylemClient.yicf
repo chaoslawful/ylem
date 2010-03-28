@@ -1,0 +1,16 @@
+PRODUCT_NAME=yphp_ylem
+VERSION=`grep 'Version' readme.ylem_yphp|head -1|awk '{print $2}'`
+CUSTODIAN=yahoo-platform-comm@list.alibaba-inc.com http://twiki.corp.cnb.yahoo.com:9999/twiki/bin/view/PlatForm/Ylem
+SHORT_DESC=`head -1 readme.ylem_yphp`
+LONG_DESC=`cat readme.ylem_yphp`
+
+OWNER=root
+GROUP=wheel
+PERM=0644
+
+YINST requires pkg yphp ROOT ROOT_MAX
+YINST requires pkg ylemClient ROOT ROOT_MAX
+
+f - - - etc/php/ ../conf/ylem.ini
+f - - - lib/php/20060613/yphp_ylem.so ../src/phpext/yphp_ylem/modules/yphp_ylem.so
+
